@@ -271,6 +271,7 @@
   function renderSummary() {
     const { inp } = current, f = inp.flight, { takeoff, landing } = T();
     const km = C.distanceKm(f.dep, f.arr), airH = (landing - takeoff) / HOUR, kmh = km / airH;
+    const est = inp.estimatedArrival ? ' – estimated' : '';
     const warn = kmh < 250 || kmh > 1050
       ? `<div class="warn">⚠️ The distance (${Math.round(km)} km) and the airborne time (${fmtDur(landing - takeoff)}) imply an average of ${Math.round(kmh)} km/h, which is unusual. Double-check the airports and that the times are local to each airport.</div>` : '';
     $('summary').innerHTML = `
@@ -278,12 +279,10 @@
       <div class="note">${esc(f.dep.name)} → ${esc(f.arr.name)}</div>
       <div class="stats">
         <div class="stat"><small>Takeoff (${f.dep.iata})</small><strong>${fmtTime(takeoff, f.dep.tz)}</strong></div>
-        <div class="stat"><small>Landing (${f.arr.iata})</small><strong>${fmtTime(landing, f.arr.tz)}</strong></div>
-        <div class="stat"><small>Time in the air</small><strong>${fmtDur(landing - takeoff)}</strong></div>
+        <div class="stat"><small>Landing (${f.arr.iata})${est}</small><strong>${fmtTime(landing, f.arr.tz)}</strong></div>
+        <div class="stat"><small>Time in the air${est}</small><strong>${fmtDur(landing - takeoff)}</strong></div>
         <div class="stat"><small>Distance</small><strong>${Math.round(km).toLocaleString()} km</strong></div>
       </div>
-      <p class="note">Takeoff is set ${f.takeoffAfter} min after the scheduled departure; landing allows ${f.taxiInMin} min taxi-in before the scheduled arrival${f.delayMin ? ' (shifted ' + (f.delayMin > 0 ? '+' : '') + f.delayMin + ' min)' : ''}. Adjust the takeoff bar above to match what actually happens. “T+” = time since takeoff; “L−” = time before landing.</p>
-      ${inp.estimatedArrival ? '<div class="warn">ℹ️ The arrival time is an <b>estimate</b> from the distance. Replace it with the real scheduled arrival for accurate results.</div>' : ''}
       ${warn}`;
   }
 
