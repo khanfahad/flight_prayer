@@ -30,7 +30,21 @@
     return (neg ? '−' : '') + (h ? h + 'h ' : '') + pad(m).replace(/^0(\d)$/, '$1') + 'm';
   }
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const compass = (deg) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(deg / 22.5) % 16];
+  // Qibla relative to the aircraft's nose, as a clock position (12 = straight ahead, 3 = right, 6 = behind, 9 = left).
+  const CLOCK_WORD = { 12: 'straight ahead', 1: 'front right', 2: 'front right', 3: 'to your right', 4: 'back right', 5: 'back right', 6: 'behind you', 7: 'back left', 8: 'back left', 9: 'to your left', 10: 'front left', 11: 'front left' };
+  function clockDir(qibla, heading) {
+    const rel = (((qibla - heading) % 360) + 360) % 360;
+    const clock = Math.round(rel / 30) % 12 || 12;
+    return { rel, clock, text: `${clock} o’clock (${CLOCK_WORD[clock]})` };
+  }
+  function headingAt(frac) {
+    const f = current.inp.flight;
+    return C.bearing(C.gcPoint(f.dep, f.arr, Math.max(0, frac - 0.01)), C.gcPoint(f.dep, f.arr, Math.min(1, frac + 0.01)));
+  }
+  function qiblaAt(t) {
+    const s = current.state(t), fr = Math.max(0, Math.min(1, s.frac));
+    return clockDir(C.qiblaFrom(s), headingAt(fr));
+  }
   const airportLabel = (a) => `${a.iata} — ${a.name}${a.city ? ' (' + a.city + ')' : ''}`;
 
   /* ---------- settings ---------- */
@@ -332,9 +346,8 @@
       const chip = !air ? '<span class="chip">On the ground</span>'
         : w.opensBeforeTakeoff || w.closesAfterLanding ? '<span class="chip air">Spans takeoff/landing</span>' : '<span class="chip air">In flight</span>';
       const q = air ? (() => {
-        const mid = w.inFlight.from; const s = current.state(mid);
-        const b = C.qiblaFrom(s);
-        return `<div class="qibla">🕋 Qibla at ${fmtTime(mid, f.dep.tz)} ${f.dep.iata} time: ${Math.round(b)}° (${compass(b)}) from true north${qev ? '' : ''}</div>`;
+        const a = qiblaAt(w.inFlight.from), z = qiblaAt(w.inFlight.to), long = w.inFlight.to - w.inFlight.from > 20 * MIN;
+        return `<div class="qibla">🕋 Qibla inside the plane: <b>${a.text}</b>${long ? ` at the start → <b>${z.text}</b> by the end` : ''}</div>`;
       })() : '';
       return `<div class="prayer" style="--c:${COLORS[w.prayer]}">
         <header><h3>${LABEL[w.prayer]}</h3>${chip}</header>
@@ -347,7 +360,7 @@
         <p class="advice">${esc(adviceFor(w))}</p>${q}
         <button type="button" class="secondary cal" data-i="${sorted.indexOf(w)}">📅 Add to calendar</button>
       </div>`;
-    }).join('') + '<button type="button" class="calall" id="calAll">📅 Add all prayers to calendar (with reminders)</button>' + `<p class="note">The sun’s position is computed for the aircraft’s location at each moment, so these differ from the ground timetable of either city. Sunrise/sunset${current.inp.opts.altitude ? ' include the extra horizon dip from cruising altitude (the sun stays visible longer at altitude)' : ' use sea-level horizon'}.</p>`;
+    }).join('') + '<p class="note">Qibla is given as a clock position inside the plane: 12 = straight ahead toward the cockpit, 3 = your right, 6 = behind you, 9 = your left. It changes as the plane turns and moves — use the map slider to see it at any moment.</p><button type="button" class="calall" id="calAll">📅 Add all prayers to calendar (with reminders)</button>' + `<p class="note">The sun’s position is computed for the aircraft’s location at each moment, so these differ from the ground timetable of either city. Sunrise/sunset${current.inp.opts.altitude ? ' include the extra horizon dip from cruising altitude (the sun stays visible longer at altitude)' : ' use sea-level horizon'}.</p>`;
   }
 
   function renderCombining() {
@@ -445,7 +458,7 @@
 
   function renderMap() {
     const f = current.inp.flight, { takeoff, landing } = T();
-    $('legend').innerHTML = Object.keys(COLORS).map((k) => `<span><i style="background:${COLORS[k]}"></i>${LABEL[k]}</span>`).join('') + '<span><b style="color:#e53935">▲</b> Plane</span><span><b style="color:#1b9e5a">➜🕋</b> Qibla direction</span>';
+    $('legend').innerHTML = Object.keys(COLORS).map((k) => `<span><i style="background:${COLORS[k]}"></i>${LABEL[k]}</span>`).join('') + '<span><b style="color:#e53935">▲</b> Plane</span><span><b style="color:#1b9e5a">➜🕋</b> Qibla direction (green arrow)</span>';
     if (typeof L === 'undefined') { $('map').innerHTML = '<p class="note" style="padding:12px">The map could not load (Leaflet unavailable). Prayer times above are unaffected.</p>'; return; }
     if (!map) {
       map = L.map('map', { worldCopyJump: true, minZoom: 1 });
@@ -461,8 +474,9 @@
     });
     current.events.filter((e) => e.t > takeoff && e.t < landing).forEach((e) => {
       const pos = at(e.frac, e.lat, e.lon);
-      const icon = L.divIcon({ className: '', html: `<div class="dot" style="width:16px;height:16px;background:${COLORS[e.type]}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
-      L.marker(pos, { icon }).addTo(layer).bindPopup(`<b>${LABEL[e.type]}</b><br>${fmtTime(e.t, f.dep.tz)} ${f.dep.iata} · ${fmtTime(e.t, f.arr.tz)} ${f.arr.iata}<br>T+${fmtDur(e.t - takeoff)} (${fmtDur(landing - e.t)} before landing)<br>Qibla ${Math.round(e.qibla)}° ${compass(e.qibla)}${e.adjusted ? '<br><i>high-latitude adjusted</i>' : ''}`);
+      const icon = L.divIcon({ className: '', html: `<div class="pm small"><div class="qarrow" style="transform:rotate(${e.qibla}deg)"><div class="shaft"></div><div class="head"></div></div><div class="dot" style="width:16px;height:16px;background:${COLORS[e.type]}"></div></div>`, iconSize: [70, 70], iconAnchor: [35, 35] });
+      const qd = clockDir(e.qibla, headingAt(Math.max(0, Math.min(1, e.frac))));
+      L.marker(pos, { icon }).addTo(layer).bindPopup(`<b>${LABEL[e.type]}</b><br>${fmtTime(e.t, f.dep.tz)} ${f.dep.iata} · ${fmtTime(e.t, f.arr.tz)} ${f.arr.iata}<br>T+${fmtDur(e.t - takeoff)} (${fmtDur(landing - e.t)} before landing)<br>🕋 Qibla: ${qd.text}${e.adjusted ? '<br><i>high-latitude adjusted</i>' : ''}`);
     });
     planeMarker = L.marker(path[0], { icon: L.divIcon({ className: '', html: '<div class="pm"><div class="qarrow"><div class="shaft"></div><div class="head"></div><div class="kaaba">🕋</div></div><div class="plane">▲</div></div>', iconSize: [130, 130], iconAnchor: [65, 65] }), zIndexOffset: 1000 }).addTo(layer);
     map.invalidateSize();
@@ -476,7 +490,7 @@
     if (!current || !current.path) return;
     const f = current.inp.flight, { takeoff, landing } = T();
     const frac = $('scrubber').value / 1000, t = takeoff + frac * (landing - takeoff);
-    const s = current.state(t), sun = C.sunAt(t, s.lat, s.lon), q = C.qiblaFrom(s);
+    const s = current.state(t), sun = C.sunAt(t, s.lat, s.lon), q = C.qiblaFrom(s), qd = clockDir(q, headingAt(s.frac));
     const path = current.path, i = Math.min(200, Math.round(s.frac * 200));
     const pos = [s.lat, lonNear(s.lon, path[i][1])];
     if (planeMarker) {
@@ -494,7 +508,7 @@
       <div>${fmtTime(t, f.dep.tz)} ${f.dep.iata} time · ${fmtTime(t, f.arr.tz)} ${f.arr.iata} time</div>
       <div>${s.lat.toFixed(1)}°, ${s.lon.toFixed(1)}° · ${Math.round(s.alt / 0.3048).toLocaleString()} ft · Sun ${sun.alt.toFixed(0)}° ${sun.alt > 0 ? 'above' : 'below'} horizon</div>
       <div>🕌 Now: <b>${esc(nowTxt)}</b></div>
-      <div>🕋 Qibla: <span class="compass" style="transform:rotate(${q}deg)">⬆</span> ${Math.round(q)}° ${compass(q)} (from true north)</div>`;
+      <div>🕋 Qibla: <span class="compass" style="transform:rotate(${qd.rel}deg)">⬆</span> <b>${qd.text}</b> in the plane</div>`;
   }
   $('scrubber').addEventListener('input', scrub);
 })();

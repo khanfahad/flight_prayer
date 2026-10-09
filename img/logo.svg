@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Flight Prayer logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14857a"/><stop offset="1" stop-color="#0b3436"/></linearGradient>
+    <mask id="cres"><rect width="64" height="64" fill="#fff"/><circle cx="37" cy="26" r="15" fill="#000"/></mask>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <circle cx="29" cy="30" r="19" fill="#fff" mask="url(#cres)"/>
+  <path d="M10 52 Q32 38 56 16" fill="none" stroke="#f0b43c" stroke-width="1.8" stroke-dasharray="1.5 3.2" stroke-linecap="round" opacity=".9"/>
+  <g transform="translate(47 24) rotate(48) scale(.62)" fill="#f0b43c">
+    <path d="M0 -17 L3 -6 L17 2 L17 6 L3 2.5 L2 12 L7 15.5 L7 18.5 L0 16 L-7 18.5 L-7 15.5 L-2 12 L-3 2.5 L-17 6 L-17 2 L-3 -6 Z"/>
+  </g>
+</svg>
