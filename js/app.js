@@ -47,7 +47,8 @@
   $('altitude').addEventListener('change', () => store.set('altitude', $('altitude').checked ? '1' : '0'));
   $('apiKey').value = store.get('apiKey', '');
   $('apiKey').addEventListener('change', () => store.set('apiKey', $('apiKey').value.trim()));
-  $('flightDate').value = new Date().toISOString().slice(0, 10);
+  const nd = new Date();
+  $('flightDate').value = `${nd.getFullYear()}-${pad(nd.getMonth() + 1)}-${pad(nd.getDate())}`;
 
   /* ---------- airport autocomplete ---------- */
   function searchAirports(q) {
@@ -83,7 +84,9 @@
   }
   function setAirport(input, iata) {
     const a = AP[iata]; if (!a) return false;
-    input.value = airportLabel(a); input.dataset.iata = iata; return true;
+    input.value = airportLabel(a); input.dataset.iata = iata;
+    estimateArrival(); updateTakeoffRead();
+    return true;
   }
   setupAirport('from', 'fromList');
   setupAirport('to', 'toList');
@@ -195,6 +198,15 @@
   $('tkPlus').addEventListener('click', () => nudge(1));
   ['from', 'to', 'depTime'].forEach((id) => $(id).addEventListener(id === 'depTime' ? 'change' : 'input', updateTakeoffRead));
   $('arrTime').addEventListener('input', () => { $('arrTime').dataset.auto = ''; });
+  // Pre-fill date/time so the fields never show an empty placeholder.
+  function syncDate() {
+    const d = $('flightDate').value; if (!d) return;
+    $('depTime').value = d + 'T' + ($('depTime').value.slice(11, 16) || '12:00');
+    if (!$('arrTime').value || $('arrTime').dataset.auto === '1') { $('arrTime').value = d + 'T' + ($('arrTime').value.slice(11, 16) || '20:00'); $('arrTime').dataset.auto = '1'; }
+    estimateArrival(); updateTakeoffRead();
+  }
+  $('flightDate').addEventListener('change', syncDate);
+  syncDate();
   $('depTime').addEventListener('change', estimateArrival);
   ['from', 'to'].forEach((id) => $(id).addEventListener('change', estimateArrival));
 
