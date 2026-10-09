@@ -7,7 +7,7 @@
   <title>Flight Prayer Times</title>
   <meta name="description" content="Prayer times, combining and qasr guidance, and a flight-path map for Muslim travellers.">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -16,6 +16,17 @@
 </header>
 
 <main>
+  <section class="card about">
+    <h2>What this app does</h2>
+    <ul>
+      <li>Shows when each prayer (Fajr, Dhuhr, Asr, Maghrib, Isha) starts and ends <b>during your flight</b>, and whether you can combine or shorten them.</li>
+      <li><b>Location:</b> the plane's position is traced along the great-circle route between the two airports, minute by minute.</li>
+      <li><b>Sun position:</b> at each moment it works out how high the sun is above the horizon where the plane is, and each prayer begins when the sun reaches its defined angle (e.g. Maghrib at sunset, Fajr and Isha at your chosen twilight angle).</li>
+      <li><b>Height:</b> at cruising altitude the horizon drops, so sunrise and sunset are seen slightly later or earlier than on the ground. You can switch this adjustment off.</li>
+      <li><b>Madhhab and method:</b> your madhhab sets the Asr shadow rule (Hanafi vs others) and the combining guidance. Your calculation method sets the Fajr and Isha angles.</li>
+      <li><b>Timing:</b> results are shown as clock time at both airports and as time after takeoff or before landing. Estimates are accurate to about a couple of minutes.</li>
+    </ul>
+  </section>
   <form id="form" autocomplete="off" novalidate>
     <section class="card">
       <h2>1 · Your flight</h2>
@@ -118,9 +129,9 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/airports.js?v=6"></script>
-<script src="js/airlines.js?v=6"></script>
-<script src="js/core.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/airports.js?v=7"></script>
+<script src="js/airlines.js?v=7"></script>
+<script src="js/core.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>
