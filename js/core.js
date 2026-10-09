@@ -37,6 +37,7 @@
     maliki: { name: 'Maliki', asrFactor: 1, qasrKm: 81, qasrObligatory: false },
     shafii: { name: "Shafi'i", asrFactor: 1, qasrKm: 81, qasrObligatory: false },
     hanbali: { name: 'Hanbali', asrFactor: 1, qasrKm: 80, qasrObligatory: false },
+    jafari: { name: "Ja'fari (Shia Ithna-Ashari)", asrFactor: 1, qasrKm: 44, qasrObligatory: true },
   };
 
   const HIGH_LAT = {
@@ -267,6 +268,18 @@
 
   /* ---------- flight analysis ---------- */
 
+  // Ja'fari: Isha's time ends at (Islamic) midnight, the midpoint between Maghrib and Fajr.
+  function applyJafariMidnight(windows) {
+    windows.forEach((w) => {
+      if (w.prayer !== 'isha') return;
+      const m = windows.find((x) => x.prayer === 'maghrib' && Math.abs(x.end - w.start) < 2 * MIN);
+      if (!m) return;
+      const mid = (m.start + w.end) / 2;
+      w.end = mid; w.endEvent = { type: 'midnight', t: mid };
+    });
+    return windows;
+  }
+
   // Describe how each prayer window relates to the flight.
   function analyseWindows(windows, flight) {
     const { takeoff, landing } = flightTimes(flight);
@@ -290,6 +303,11 @@
   }
 
   const RULINGS = {
+    jafari: {
+      combine: 'shared',
+      summary: "Ja'fari: Dhuhr and Asr share one time from zawal (solar noon) until sunset, with Dhuhr prayed first; Maghrib and Isha share one time from Maghrib (disappearance of the eastern redness) until midnight, with Maghrib first. You may pray them back to back anywhere in these shared times — no special travel condition is needed.",
+      qasr: 'Shortening (qasr) is obligatory for a journey of about 44 km (8 farsakhs) or more, provided the other conditions are met.',
+    },
     hanafi: {
       combine: 'none',
       summary: "Hanafi: combining two prayers in one time (jam' haqiqi) is not permitted while travelling (the exceptions are Arafah and Muzdalifah during Hajj). You may, however, pray 'apparent combining' (jam' suri): the first prayer at the very end of its time and the second at the very start of its own.",
@@ -343,6 +361,7 @@
         result.push({
           label, first: p1, second: p2, w1, w2,
           taqdim: clip(w1), takhir: clip(w2),
+          shared: clip({ start: w1.start, end: w2.end }), // Ja'fari: one shared time for both prayers
           boundary: w1.end, // jam' suri pivot: first prayer just before, second just after
           boundaryInFlight: w1.end > takeoff && w1.end < landing,
         });
@@ -355,7 +374,7 @@
     METHODS, MADHHABS, HIGH_LAT, KAABA, PRAYER_ORDER, RULINGS,
     solar, sunAt, horizonDip, asrAltitude, distanceKm, gcPoint, bearing, qiblaFrom,
     tzOffsetMs, zonedToUtc, flightTimes, flightState, computeEvents, buildWindows,
-    analyseWindows, combiningAnalysis, PAD, MIN, HOUR,
+    analyseWindows, combiningAnalysis, applyJafariMidnight, PAD, MIN, HOUR,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PrayerCore = api;

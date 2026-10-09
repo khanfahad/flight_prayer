@@ -5,7 +5,7 @@ A static, mobile-friendly web app that tells Muslim travellers when each prayer 
 - Enter a flight number + date (or just the airports and local times) and confirm the route and timings.
 - Prayer boundaries are computed from the sun's position over the aircraft at each moment (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha).
 - Shows each time as clock time at both airports **and** as "T+4h 10m after takeoff" / "2h 05m before landing".
-- Madhhab (Hanafi, Maliki, Shafi'i, Hanbali) sets the Asr shadow factor and the combining/qasr guidance.
+- Madhhab or fiqh (Hanafi, Maliki, Shafi'i, Hanbali, Ja'fari) sets the Asr shadow factor and the combining/qasr guidance.
 - 14 calculation methods, high-latitude fallback rules, and optional cruise-altitude horizon dip for sunrise/sunset.
 - Combining check: Dhuhr+Asr and Maghrib+Isha windows (taqdim/ta'khir, or Hanafi apparent combining) mapped onto the flight.
 - Leaflet map with the great-circle path, prayer markers, and a slider that moves a plane along the route with live sun altitude and Qibla bearing.

@@ -43,6 +43,9 @@
   fillSelect($('madhhab'), C.MADHHABS, 'madhhab', 'shafii');
   fillSelect($('method'), C.METHODS, 'method', 'MWL');
   fillSelect($('highLat'), C.HIGH_LAT, 'highLat', 'angle');
+  $('madhhab').addEventListener('change', () => {
+    if ($('madhhab').value === 'jafari' && !['JAFARI', 'TEHRAN'].includes($('method').value)) { $('method').value = 'JAFARI'; store.set('method', 'JAFARI'); }
+  });
   $('altitude').checked = store.get('altitude', '1') === '1';
   $('altitude').addEventListener('change', () => store.set('altitude', $('altitude').checked ? '1' : '0'));
   $('apiKey').value = store.get('apiKey', '');
@@ -259,6 +262,7 @@
     const state = C.flightState(flight);
     const events = C.computeEvents(state, flight.depUtc - C.PAD, flight.arrUtc + C.PAD, opts);
     const windows = C.buildWindows(events);
+    if (opts.madhhab === 'jafari') C.applyJafariMidnight(windows);
     const rel = C.analyseWindows(windows, flight);
     const comb = C.combiningAnalysis(windows, flight, opts.madhhab);
     current = { inp, state, events, windows, rel, comb };
@@ -360,7 +364,9 @@
     const pairs = comb.pairs.map((p) => {
       const l1 = LABEL[p.first], l2 = LABEL[p.second];
       let body;
-      if (hanafi) {
+      if (inp.opts.madhhab === 'jafari') {
+        body = `<div class="opt"><b>Shared time</b> (pray ${l1} then ${l2} at any point): ${fmtTime(p.shared.start, f.dep.tz)} → ${fmtTime(p.shared.end, f.dep.tz)} ${f.dep.iata} time${p.second === 'isha' ? ' (ends at midnight)' : ' (until about sunset)'} → ${span(p.shared)}.</div>`;
+      } else if (hanafi) {
         body = `<div class="opt"><b>Apparent combining (jam‘ ṣūrī)</b>: pray ${l1} at the very end of its time and ${l2} as soon as it begins. The boundary is <span class="off">${fmtTime(p.boundary, f.dep.tz)} ${f.dep.iata} time · ${offsetText(p.boundary)}</span>.${p.boundaryInFlight ? '' : ' (This boundary is on the ground, not in flight.)'}</div>
           <div class="opt note">Each prayer is still prayed in its own time. ${l1} window: ${span(p.taqdim)}. ${l2} window: ${span(p.takhir)}.</div>`;
       } else {
