@@ -470,7 +470,10 @@
     L.polyline(path, { color: '#0f6b63', weight: 3, opacity: .9 }).addTo(layer);
     const at = (frac, lat, lon) => { const idx = Math.round(frac * 200); return [lat, lonNear(lon, path[Math.max(0, Math.min(200, idx))][1])]; };
     [[f.dep, 0], [f.arr, 1]].forEach(([a, fr]) => {
-      L.circleMarker(at(fr, a.lat, a.lon), { radius: 7, color: '#fff', weight: 2, fillColor: '#0f3d3e', fillOpacity: 1 }).addTo(layer).bindTooltip(`${a.iata} — ${a.city}`, { permanent: true, direction: 'top' });
+      const pt = at(fr, a.lat, a.lon);
+      L.circleMarker(pt, { radius: 4, color: '#fff', weight: 1.5, fillColor: '#0f3d3e', fillOpacity: 1 }).addTo(layer)
+        .bindTooltip(a.iata, { permanent: true, direction: fr ? 'right' : 'left', offset: [fr ? 6 : -6, 0], className: 'apt-tip' })
+        .bindPopup(`${a.iata} — ${esc(a.name)}`);
     });
     current.events.filter((e) => e.t > takeoff && e.t < landing).forEach((e) => {
       const pos = at(e.frac, e.lat, e.lon);
