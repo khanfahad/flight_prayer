@@ -7,7 +7,7 @@
   <title>Flight Prayer Times</title>
   <meta name="description" content="Prayer times, combining and qasr guidance, and a flight-path map for Muslim travellers.">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 <header class="top">
@@ -51,12 +51,16 @@
           <input id="arrTime" type="datetime-local">
         </label>
       </div>
-      <div class="row">
-        <label>Delay (min)<input id="delay" type="number" step="5" value="0" inputmode="numeric"></label>
-        <label>Taxi out (min)<input id="taxiOut" type="number" min="0" max="120" value="15" inputmode="numeric"></label>
-        <label>Taxi in (min)<input id="taxiIn" type="number" min="0" max="120" value="10" inputmode="numeric"></label>
+      <div class="takeoff">
+        <label for="takeoffBar">Actual takeoff time <small>(drag if it differs from the schedule)</small></label>
+        <div class="takeoffRead" id="takeoffRead">Set departure time first</div>
+        <div class="barrow">
+          <button type="button" class="step" id="tkMinus" aria-label="1 minute earlier">−</button>
+          <input id="takeoffBar" type="range" min="0" max="240" step="1" value="15">
+          <button type="button" class="step" id="tkPlus" aria-label="1 minute later">+</button>
+        </div>
+        <p class="note">Starts at 15 min after the scheduled departure (typical push-back + taxi). Moving it shifts the whole flight; results update instantly.</p>
       </div>
-      <p class="note">Delayed, or a long taxi? Adjust these — results update instantly. Delay shifts the whole flight later (use a negative number if early).</p>
       <details>
         <summary>Advanced options</summary>
         <label>Cruise altitude (ft)<input id="cruiseFt" type="number" min="0" max="45000" step="1000" value="35000"></label>
@@ -114,9 +118,9 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/airports.js"></script>
-<script src="js/airlines.js"></script>
-<script src="js/core.js"></script>
-<script src="js/app.js"></script>
+<script src="js/airports.js?v=3"></script>
+<script src="js/airlines.js?v=3"></script>
+<script src="js/core.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

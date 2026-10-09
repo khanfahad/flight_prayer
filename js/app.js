@@ -167,7 +167,7 @@
       if (!res.dep || !res.arr) text += 'Enter your departure time (local) and the arrival time will be estimated — or add an API key under Advanced options for exact schedules.';
       else text += 'Please confirm the times below.';
       if (!okFrom || !okTo) text += ' (An airport wasn’t in the built-in list — please choose it manually.)';
-      msg(text); estimateArrival();
+      msg(text); estimateArrival(); updateTakeoffRead();
     } catch (e) {
       msg('Lookup failed: ' + e.message + '. Enter the details manually below.', true);
     } finally { $('lookup').disabled = false; }
@@ -184,6 +184,16 @@
     arr.value = utcToLocalInput(dep + dur, to.tz); arr.dataset.auto = '1';
     msg('Arrival time estimated from the distance (≈ ' + fmtDur(dur) + ' gate to gate). Replace it with the real scheduled arrival if you have it.');
   }
+  function updateTakeoffRead() {
+    const from = AP[$('from').dataset.iata], m = $('depTime').value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/), v = +$('takeoffBar').value;
+    if (!from || !m) { $('takeoffRead').textContent = 'Set the departure airport and time first'; return; }
+    const dep = C.zonedToUtc(+m[1], +m[2], +m[3], +m[4], +m[5], from.tz);
+    $('takeoffRead').innerHTML = `Takeoff <b>${fmtTime(dep + v * MIN, from.tz)}</b> ${from.iata} time <small>· ${v} min after scheduled departure (${fmtTime(dep, from.tz)})</small>`;
+  }
+  const nudge = (d) => { const b = $('takeoffBar'); b.value = Math.max(0, Math.min(240, +b.value + d)); b.dispatchEvent(new Event('input')); };
+  $('tkMinus').addEventListener('click', () => nudge(-1));
+  $('tkPlus').addEventListener('click', () => nudge(1));
+  ['from', 'to', 'depTime'].forEach((id) => $(id).addEventListener(id === 'depTime' ? 'change' : 'input', updateTakeoffRead));
   $('arrTime').addEventListener('input', () => { $('arrTime').dataset.auto = ''; });
   $('depTime').addEventListener('change', estimateArrival);
   ['from', 'to'].forEach((id) => $(id).addEventListener('change', estimateArrival));
@@ -203,21 +213,22 @@
       return C.zonedToUtc(+m[1], +m[2], +m[3], +m[4], +m[5], tz);
     };
     const depUtc = parse($('depTime').value, from.tz, 'departure'), arrUtc = parse($('arrTime').value, to.tz, 'arrival');
-    const taxiOutMin = Math.max(0, +$('taxiOut').value || 0), taxiInMin = Math.max(0, +$('taxiIn').value || 0);
-    const delayMin = +$('delay').value || 0;
+    const taxiOutMin = 15, taxiInMin = 10, takeoffAfter = +$('takeoffBar').value;
+    const delayMin = takeoffAfter - taxiOutMin; // bar = minutes from scheduled departure to actual takeoff
     if (arrUtc - depUtc < (taxiOutMin + taxiInMin + 20) * MIN) {
       throw new Error('The arrival time is not after the departure time once time zones are accounted for. Make sure both are LOCAL times at each airport.');
     }
     if (arrUtc - depUtc > 30 * HOUR) throw new Error('That flight would be longer than 30 hours — please check the times.');
     return {
       estimatedArrival: $('arrTime').dataset.auto === '1',
-      flight: { dep: from, arr: to, depUtc: depUtc + delayMin * MIN, arrUtc: arrUtc + delayMin * MIN, delayMin, taxiOutMin, taxiInMin, cruiseFt: +$('cruiseFt').value || 35000 },
+      flight: { dep: from, arr: to, depUtc: depUtc + delayMin * MIN, arrUtc: arrUtc + delayMin * MIN, delayMin, takeoffAfter, taxiOutMin, taxiInMin, cruiseFt: +$('cruiseFt').value || 35000 },
       opts: { madhhab: $('madhhab').value, method: $('method').value, highLat: $('highLat').value, altitude: $('altitude').checked },
       number: $('flightNo').value.trim(),
     };
   }
 
-  ['delay', 'taxiOut', 'taxiIn', 'depTime', 'arrTime'].forEach((id) => $(id).addEventListener('change', () => {
+  ['takeoffBar', 'depTime', 'arrTime'].forEach((id) => $(id).addEventListener(id === 'takeoffBar' ? 'input' : 'change', () => {
+    updateTakeoffRead();
     if ($('results').hidden) return;
     try { const inp = readInputs(); showError(''); calculate(inp, false); } catch (err) { showError(err.message); }
   }));
@@ -271,7 +282,7 @@
         <div class="stat"><small>Time in the air</small><strong>${fmtDur(landing - takeoff)}</strong></div>
         <div class="stat"><small>Distance</small><strong>${Math.round(km).toLocaleString()} km</strong></div>
       </div>
-      <p class="note">Takeoff/landing assume ${f.taxiOutMin} min taxi out and ${f.taxiInMin} min taxi in${f.delayMin ? ', with the flight shifted by ' + f.delayMin + ' min (delay)' : ''}. Change these above to match what actually happens. “T+” = time since takeoff; “L−” = time before landing.</p>
+      <p class="note">Takeoff is set ${f.takeoffAfter} min after the scheduled departure; landing allows ${f.taxiInMin} min taxi-in before the scheduled arrival${f.delayMin ? ' (shifted ' + (f.delayMin > 0 ? '+' : '') + f.delayMin + ' min)' : ''}. Adjust the takeoff bar above to match what actually happens. “T+” = time since takeoff; “L−” = time before landing.</p>
       ${inp.estimatedArrival ? '<div class="warn">ℹ️ The arrival time is an <b>estimate</b> from the distance. Replace it with the real scheduled arrival for accurate results.</div>' : ''}
       ${warn}`;
   }
