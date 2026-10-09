@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f3d3e">
+  <title>Flight Prayer Times</title>
+  <meta name="description" content="Prayer times, combining and qasr guidance, and a flight-path map for Muslim travellers.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>✈️ Flight Prayer Times</h1>
+  <p>Know when each prayer falls during your flight, whether you can combine, and where on the map it happens.</p>
+</header>
+
+<main>
+  <form id="form" autocomplete="off" novalidate>
+    <section class="card">
+      <h2>1 · Your flight</h2>
+      <div class="row">
+        <label class="grow">Flight number
+          <input id="flightNo" placeholder="e.g. EK 203 or UAE203" autocapitalize="characters" inputmode="text">
+        </label>
+        <label>Departure date
+          <input id="flightDate" type="date">
+        </label>
+      </div>
+      <div class="row">
+        <button type="button" id="lookup" class="secondary">Look up flight</button>
+        <a id="googleLink" class="linkbtn" target="_blank" rel="noopener">Check on Google ↗</a>
+      </div>
+      <p id="lookupMsg" class="msg" role="status"></p>
+
+      <div class="row">
+        <label class="grow ac">From (airport)
+          <input id="from" placeholder="IATA code or city, e.g. DXB" autocapitalize="characters">
+          <ul class="suggest" id="fromList"></ul>
+        </label>
+        <label class="grow ac">To (airport)
+          <input id="to" placeholder="e.g. JFK" autocapitalize="characters">
+          <ul class="suggest" id="toList"></ul>
+        </label>
+      </div>
+      <div class="row">
+        <label class="grow">Departure (local time at origin)
+          <input id="depTime" type="datetime-local">
+        </label>
+        <label class="grow">Arrival (local time at destination)
+          <input id="arrTime" type="datetime-local">
+        </label>
+      </div>
+      <details>
+        <summary>Advanced flight options</summary>
+        <div class="row">
+          <label>Taxi before takeoff (min)<input id="taxiOut" type="number" min="0" max="120" value="15"></label>
+          <label>Taxi after landing (min)<input id="taxiIn" type="number" min="0" max="120" value="10"></label>
+          <label>Cruise altitude (ft)<input id="cruiseFt" type="number" min="0" max="45000" step="1000" value="35000"></label>
+        </div>
+        <label>AeroDataBox (RapidAPI) key — optional, enables automatic schedule lookup
+          <input id="apiKey" type="password" placeholder="stored only in this browser" autocomplete="off">
+        </label>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>2 · Prayer settings</h2>
+      <div class="row">
+        <label class="grow">Madhhab
+          <select id="madhhab"></select>
+        </label>
+        <label class="grow">Calculation method
+          <select id="method"></select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="grow">High-latitude rule
+          <select id="highLat"></select>
+        </label>
+        <label class="check"><input type="checkbox" id="altitude" checked> Adjust sunrise/sunset for altitude</label>
+      </div>
+      <button type="submit" id="go">Calculate prayer times</button>
+    </section>
+  </form>
+
+  <div id="error" class="card error" hidden></div>
+
+  <div id="results" hidden>
+    <section class="card" id="summary"></section>
+    <section class="card">
+      <h2>Prayers during your flight</h2>
+      <div id="prayers"></div>
+    </section>
+    <section class="card" id="combining"></section>
+    <section class="card">
+      <h2>Flight path &amp; prayer map</h2>
+      <div id="map" aria-label="Map of the flight path"></div>
+      <div class="legend" id="legend"></div>
+      <div class="scrub">
+        <label>Slide to move along the flight
+          <input type="range" id="scrubber" min="0" max="1000" value="0">
+        </label>
+        <div id="scrubInfo" class="scrubInfo"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <p>Times are calculated astronomically and are estimates — flight times change and the sun's position over the aircraft is approximate (about ±2 minutes). Rulings on combining and shortening vary between scholars, so confirm with a trusted scholar for your situation.</p>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/airports.js"></script>
+<script src="js/airlines.js"></script>
+<script src="js/core.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
