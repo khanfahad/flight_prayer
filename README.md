@@ -1,4 +1,4 @@
-# Flight Prayer Times
+# Salah Skies
 
 A static, mobile-friendly web app that tells Muslim travellers when each prayer falls **during a flight**.
 

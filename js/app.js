@@ -1,4 +1,4 @@
-/* UI for Flight Prayer Times. Depends on window.PrayerCore, AIRPORTS, AIRLINES and Leaflet (L). */
+/* UI for Salah Skies. Depends on window.PrayerCore, AIRPORTS, AIRLINES and Leaflet (L). */
 (function () {
   'use strict';
   const C = window.PrayerCore;
@@ -430,7 +430,7 @@
     ];
   }
   function downloadIcs(ws, name) {
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Flight Prayer Times//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Salah Skies//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
     ws.forEach((w) => lines.push(...icsEvent(w)));
     lines.push('END:VCALENDAR');
     const blob = new Blob([lines.map(icsFold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
