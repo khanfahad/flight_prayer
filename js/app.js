@@ -161,16 +161,32 @@
         return;
       }
       const okFrom = res.from && setAirport($('from'), res.from), okTo = res.to && setAirport($('to'), res.to);
-      if (res.dep) $('depTime').value = res.dep; if (res.arr) $('arrTime').value = res.arr;
+      if (res.dep) $('depTime').value = res.dep;
+      if (res.arr) { $('arrTime').value = res.arr; $('arrTime').dataset.auto = ''; }
       let text = `Found via ${res.source}: ${res.from || '?'} → ${res.to || '?'}` + (f.airline ? ' · ' + f.airline : '') + '. ';
-      if (!res.dep || !res.arr) text += 'Schedules aren’t available without an API key — copy the departure/arrival times from Google (use local times at each airport).';
+      if (!res.dep || !res.arr) text += 'Enter your departure time (local) and the arrival time will be estimated — or add an API key under Advanced options for exact schedules.';
       else text += 'Please confirm the times below.';
       if (!okFrom || !okTo) text += ' (An airport wasn’t in the built-in list — please choose it manually.)';
-      msg(text);
+      msg(text); estimateArrival();
     } catch (e) {
       msg('Lookup failed: ' + e.message + '. Enter the details manually below.', true);
     } finally { $('lookup').disabled = false; }
   });
+
+  /* ---------- arrival estimate ---------- */
+  function utcToLocalInput(ms, tz) { return new Date(ms + C.tzOffsetMs(ms, tz)).toISOString().slice(0, 16); }
+  function estimateArrival() {
+    const from = AP[$('from').dataset.iata], to = AP[$('to').dataset.iata], arr = $('arrTime');
+    const m = $('depTime').value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!from || !to || !m || (arr.value && arr.dataset.auto !== '1')) return;
+    const dep = C.zonedToUtc(+m[1], +m[2], +m[3], +m[4], +m[5], from.tz);
+    const dur = (C.distanceKm(from, to) / 830) * HOUR + 35 * MIN;
+    arr.value = utcToLocalInput(dep + dur, to.tz); arr.dataset.auto = '1';
+    msg('Arrival time estimated from the distance (≈ ' + fmtDur(dur) + ' gate to gate). Replace it with the real scheduled arrival if you have it.');
+  }
+  $('arrTime').addEventListener('input', () => { $('arrTime').dataset.auto = ''; });
+  $('depTime').addEventListener('change', estimateArrival);
+  ['from', 'to'].forEach((id) => $(id).addEventListener('change', estimateArrival));
 
   /* ---------- calculation ---------- */
   let map = null, layer = null, planeMarker = null, current = null;
@@ -188,27 +204,34 @@
     };
     const depUtc = parse($('depTime').value, from.tz, 'departure'), arrUtc = parse($('arrTime').value, to.tz, 'arrival');
     const taxiOutMin = Math.max(0, +$('taxiOut').value || 0), taxiInMin = Math.max(0, +$('taxiIn').value || 0);
+    const delayMin = +$('delay').value || 0;
     if (arrUtc - depUtc < (taxiOutMin + taxiInMin + 20) * MIN) {
       throw new Error('The arrival time is not after the departure time once time zones are accounted for. Make sure both are LOCAL times at each airport.');
     }
     if (arrUtc - depUtc > 30 * HOUR) throw new Error('That flight would be longer than 30 hours — please check the times.');
     return {
-      flight: { dep: from, arr: to, depUtc, arrUtc, taxiOutMin, taxiInMin, cruiseFt: +$('cruiseFt').value || 35000 },
+      estimatedArrival: $('arrTime').dataset.auto === '1',
+      flight: { dep: from, arr: to, depUtc: depUtc + delayMin * MIN, arrUtc: arrUtc + delayMin * MIN, delayMin, taxiOutMin, taxiInMin, cruiseFt: +$('cruiseFt').value || 35000 },
       opts: { madhhab: $('madhhab').value, method: $('method').value, highLat: $('highLat').value, altitude: $('altitude').checked },
       number: $('flightNo').value.trim(),
     };
   }
+
+  ['delay', 'taxiOut', 'taxiIn', 'depTime', 'arrTime'].forEach((id) => $(id).addEventListener('change', () => {
+    if ($('results').hidden) return;
+    try { const inp = readInputs(); showError(''); calculate(inp, false); } catch (err) { showError(err.message); }
+  }));
 
   $('form').addEventListener('submit', (e) => {
     e.preventDefault();
     try {
       const inp = readInputs();
       showError('');
-      calculate(inp);
+      calculate(inp, true);
     } catch (err) { showError(err.message); }
   });
 
-  function calculate(inp) {
+  function calculate(inp, scroll) {
     const { flight, opts } = inp;
     const state = C.flightState(flight);
     const events = C.computeEvents(state, flight.depUtc - C.PAD, flight.arrUtc + C.PAD, opts);
@@ -216,9 +239,9 @@
     const rel = C.analyseWindows(windows, flight);
     const comb = C.combiningAnalysis(windows, flight, opts.madhhab);
     current = { inp, state, events, windows, rel, comb };
+    $('results').hidden = false; // must be visible before the map is sized
     renderSummary(); renderPrayers(); renderCombining(); renderMap();
-    $('results').hidden = false;
-    $('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (scroll) $('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /* ---------- rendering helpers ---------- */
@@ -248,7 +271,8 @@
         <div class="stat"><small>Time in the air</small><strong>${fmtDur(landing - takeoff)}</strong></div>
         <div class="stat"><small>Distance</small><strong>${Math.round(km).toLocaleString()} km</strong></div>
       </div>
-      <p class="note">Takeoff/landing assume ${f.taxiOutMin} min taxi out and ${f.taxiInMin} min taxi in from the gate times. “T+” = time since takeoff; “L−” = time before landing.</p>
+      <p class="note">Takeoff/landing assume ${f.taxiOutMin} min taxi out and ${f.taxiInMin} min taxi in${f.delayMin ? ', with the flight shifted by ' + f.delayMin + ' min (delay)' : ''}. Change these above to match what actually happens. “T+” = time since takeoff; “L−” = time before landing.</p>
+      ${inp.estimatedArrival ? '<div class="warn">ℹ️ The arrival time is an <b>estimate</b> from the distance. Replace it with the real scheduled arrival for accurate results.</div>' : ''}
       ${warn}`;
   }
 
@@ -346,7 +370,7 @@
 
   function renderMap() {
     const f = current.inp.flight, { takeoff, landing } = T();
-    $('legend').innerHTML = Object.keys(COLORS).map((k) => `<span><i style="background:${COLORS[k]}"></i>${LABEL[k]}</span>`).join('');
+    $('legend').innerHTML = Object.keys(COLORS).map((k) => `<span><i style="background:${COLORS[k]}"></i>${LABEL[k]}</span>`).join('') + '<span><b style="color:#e53935">▲</b> Plane</span><span><b style="color:#1b9e5a">➜🕋</b> Qibla direction</span>';
     if (typeof L === 'undefined') { $('map').innerHTML = '<p class="note" style="padding:12px">The map could not load (Leaflet unavailable). Prayer times above are unaffected.</p>'; return; }
     if (!map) {
       map = L.map('map', { worldCopyJump: true, minZoom: 1 });
@@ -358,16 +382,17 @@
     L.polyline(path, { color: '#0f6b63', weight: 3, opacity: .9 }).addTo(layer);
     const at = (frac, lat, lon) => { const idx = Math.round(frac * 200); return [lat, lonNear(lon, path[Math.max(0, Math.min(200, idx))][1])]; };
     [[f.dep, 0], [f.arr, 1]].forEach(([a, fr]) => {
-      L.marker(at(fr, a.lat, a.lon)).addTo(layer).bindTooltip(`${a.iata} — ${a.city}`, { permanent: true, direction: 'top' });
+      L.circleMarker(at(fr, a.lat, a.lon), { radius: 7, color: '#fff', weight: 2, fillColor: '#0f3d3e', fillOpacity: 1 }).addTo(layer).bindTooltip(`${a.iata} — ${a.city}`, { permanent: true, direction: 'top' });
     });
     current.events.filter((e) => e.t > takeoff && e.t < landing).forEach((e) => {
       const pos = at(e.frac, e.lat, e.lon);
       const icon = L.divIcon({ className: '', html: `<div class="dot" style="width:16px;height:16px;background:${COLORS[e.type]}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
       L.marker(pos, { icon }).addTo(layer).bindPopup(`<b>${LABEL[e.type]}</b><br>${fmtTime(e.t, f.dep.tz)} ${f.dep.iata} · ${fmtTime(e.t, f.arr.tz)} ${f.arr.iata}<br>T+${fmtDur(e.t - takeoff)} (${fmtDur(landing - e.t)} before landing)<br>Qibla ${Math.round(e.qibla)}° ${compass(e.qibla)}${e.adjusted ? '<br><i>high-latitude adjusted</i>' : ''}`);
     });
-    planeMarker = L.marker(path[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="planeIcon">▲</div>', iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 1000 }).addTo(layer);
+    planeMarker = L.marker(path[0], { icon: L.divIcon({ className: '', html: '<div class="pm"><div class="qarrow"><div class="shaft"></div><div class="head"></div><div class="kaaba">🕋</div></div><div class="plane">▲</div></div>', iconSize: [130, 130], iconAnchor: [65, 65] }), zIndexOffset: 1000 }).addTo(layer);
+    map.invalidateSize();
     map.fitBounds(L.latLngBounds(path), { padding: [30, 30] });
-    setTimeout(() => map.invalidateSize(), 50);
+    setTimeout(() => { map.invalidateSize(); map.fitBounds(L.latLngBounds(path), { padding: [30, 30] }); }, 300);
     current.path = path;
     $('scrubber').value = 0; scrub();
   }
@@ -382,7 +407,10 @@
     if (planeMarker) {
       planeMarker.setLatLng(pos);
       const nxt = C.gcPoint(f.dep, f.arr, Math.min(1, s.frac + 0.01)), prv = C.gcPoint(f.dep, f.arr, Math.max(0, s.frac - 0.01));
-      const el = document.getElementById('planeIcon'); if (el) el.style.transform = `rotate(${C.bearing(prv, nxt)}deg)`;
+      const root = planeMarker.getElement();
+      const pl = root && root.querySelector('.plane'), qa = root && root.querySelector('.qarrow');
+      if (pl) pl.style.transform = `rotate(${C.bearing(prv, nxt)}deg)`;
+      if (qa) qa.style.transform = `rotate(${q}deg)`;
     }
     const w = current.windows.find((x) => x.start <= t && t < x.end);
     const nowTxt = w ? `${LABEL[w.prayer]} time (until T+${fmtDur(w.end - takeoff)})` : 'No prayer time currently (between Sunrise and Dhuhr)';

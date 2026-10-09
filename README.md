@@ -24,7 +24,7 @@ Browsers cannot scrape Google, and no free schedule API works without a key, so:
 
 ## Data and tests
 
-`tools/build-data.py` regenerates `js/airports.js` and `js/airlines.js` from OpenFlights. Ground-time output of `js/core.js` was checked against the `adhan` library (within about 1 minute).
+`tools/build-airports.js` (OurAirports + `tz-lookup`) regenerates `js/airports.js`; `tools/build-airlines.py` regenerates `js/airlines.js` from OpenFlights. Ground-time output of `js/core.js` was checked against the `adhan` library (within about 1 minute).
 
 ## Disclaimer
 

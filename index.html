@@ -51,14 +51,16 @@
           <input id="arrTime" type="datetime-local">
         </label>
       </div>
+      <div class="row">
+        <label>Delay (min)<input id="delay" type="number" step="5" value="0" inputmode="numeric"></label>
+        <label>Taxi out (min)<input id="taxiOut" type="number" min="0" max="120" value="15" inputmode="numeric"></label>
+        <label>Taxi in (min)<input id="taxiIn" type="number" min="0" max="120" value="10" inputmode="numeric"></label>
+      </div>
+      <p class="note">Delayed, or a long taxi? Adjust these — results update instantly. Delay shifts the whole flight later (use a negative number if early).</p>
       <details>
-        <summary>Advanced flight options</summary>
-        <div class="row">
-          <label>Taxi before takeoff (min)<input id="taxiOut" type="number" min="0" max="120" value="15"></label>
-          <label>Taxi after landing (min)<input id="taxiIn" type="number" min="0" max="120" value="10"></label>
-          <label>Cruise altitude (ft)<input id="cruiseFt" type="number" min="0" max="45000" step="1000" value="35000"></label>
-        </div>
-        <label>AeroDataBox (RapidAPI) key — optional, enables automatic schedule lookup
+        <summary>Advanced options</summary>
+        <label>Cruise altitude (ft)<input id="cruiseFt" type="number" min="0" max="45000" step="1000" value="35000"></label>
+        <label>AeroDataBox (RapidAPI) key — optional, enables exact schedule lookup
           <input id="apiKey" type="password" placeholder="stored only in this browser" autocomplete="off">
         </label>
       </details>
