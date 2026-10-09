@@ -322,6 +322,7 @@
     const { rel } = current, { takeoff, landing } = T(), f = current.inp.flight;
     if (!rel.length) { $('prayers').innerHTML = '<p class="note">No prayer windows overlap this flight.</p>'; return; }
     const sorted = rel.slice().sort((a, b) => a.start - b.start);
+    current.sorted = sorted;
     $('prayers').innerHTML = sorted.map((w) => {
       const air = w.inFlight, ev = w.startEvent, qev = air && ev.t > takeoff && ev.t < landing ? ev : null;
       const chip = !air ? '<span class="chip">On the ground</span>'
@@ -340,8 +341,9 @@
           <div><span></span><span class="off">${offsetText(w.end)}</span></div>
         </div>
         <p class="advice">${esc(adviceFor(w))}</p>${q}
+        <button type="button" class="secondary cal" data-i="${sorted.indexOf(w)}">📅 Add to calendar</button>
       </div>`;
-    }).join('') + `<p class="note">The sun’s position is computed for the aircraft’s location at each moment, so these differ from the ground timetable of either city. Sunrise/sunset${current.inp.opts.altitude ? ' include the extra horizon dip from cruising altitude (the sun stays visible longer at altitude)' : ' use sea-level horizon'}.</p>`;
+    }).join('') + '<button type="button" class="calall" id="calAll">📅 Add all prayers to calendar (with reminders)</button>' + `<p class="note">The sun’s position is computed for the aircraft’s location at each moment, so these differ from the ground timetable of either city. Sunrise/sunset${current.inp.opts.altitude ? ' include the extra horizon dip from cruising altitude (the sun stays visible longer at altitude)' : ' use sea-level horizon'}.</p>`;
   }
 
   function renderCombining() {
@@ -377,6 +379,51 @@
       ${pairs}
       <p class="note">Travel concessions are generally understood to begin once you have left your town’s limits. Opinions differ on details (and on flights in particular), so please consult a scholar you trust.</p>`;
   }
+
+  /* ---------- calendar (.ics) ---------- */
+  const icsDate = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const icsEsc = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  function icsFold(line) {
+    const out = []; let cur = '';
+    for (const ch of line) {
+      if (new TextEncoder().encode(cur + ch).length > 73) { out.push(cur); cur = ' ' + ch; } else cur += ch;
+    }
+    out.push(cur); return out.join('\r\n');
+  }
+  function icsEvent(w) {
+    const f = current.inp.flight, { takeoff, landing } = T();
+    const where = !w.inFlight ? 'On the ground' : w.opensBeforeTakeoff || w.closesAfterLanding ? 'Spans takeoff/landing' : 'In flight';
+    const desc = [
+      `${LABEL[w.prayer]} window for ${f.dep.iata} → ${f.arr.iata}.`,
+      `Starts: ${fmtTime(w.start, f.dep.tz)} ${f.dep.iata} / ${fmtTime(w.start, f.arr.tz)} ${f.arr.iata} (${offsetText(w.start)}).`,
+      `Ends: ${fmtTime(w.end, f.dep.tz)} ${f.dep.iata} / ${fmtTime(w.end, f.arr.tz)} ${f.arr.iata} (${offsetText(w.end)}).`,
+      adviceFor(w),
+      'Estimate only — confirm with a scholar and your actual flight times.',
+    ].join('\n');
+    const alarm = (trigger, text) => ['BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(text), 'TRIGGER:' + trigger, 'END:VALARM'];
+    return [
+      'BEGIN:VEVENT', `UID:${w.prayer}-${Math.round(w.start / MIN)}-${f.dep.iata}${f.arr.iata}@flight-prayer`,
+      'DTSTAMP:' + icsDate(Date.now()), 'DTSTART:' + icsDate(w.start), 'DTEND:' + icsDate(w.end),
+      'SUMMARY:' + icsEsc(`🕌 ${LABEL[w.prayer]} (${where.toLowerCase()})`), 'LOCATION:' + icsEsc(`${f.dep.iata} → ${f.arr.iata} flight`),
+      'DESCRIPTION:' + icsEsc(desc), 'TRANSP:TRANSPARENT',
+      ...alarm('-PT15M', `${LABEL[w.prayer]} window opens in 15 minutes`), ...alarm('PT0M', `${LABEL[w.prayer]} window has opened`),
+      'END:VEVENT',
+    ];
+  }
+  function downloadIcs(ws, name) {
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Flight Prayer Times//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    ws.forEach((w) => lines.push(...icsEvent(w)));
+    lines.push('END:VCALENDAR');
+    const blob = new Blob([lines.map(icsFold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  $('prayers').addEventListener('click', (e) => {
+    if (!current || !current.sorted) return;
+    const f = current.inp.flight, tag = `${f.dep.iata}-${f.arr.iata}`;
+    if (e.target.id === 'calAll') downloadIcs(current.sorted, `prayers-${tag}.ics`);
+    const b = e.target.closest('.cal'); if (b) { const w = current.sorted[+b.dataset.i]; downloadIcs([w], `${w.prayer}-${tag}.ics`); }
+  });
 
   /* ---------- map ---------- */
   function unwrapPath(f, n) {

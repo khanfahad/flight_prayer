@@ -109,3 +109,6 @@ footer { color: var(--muted); font-size: .8rem; padding: 6px 4px; }
 .barrow { display: flex; align-items: center; gap: 8px; }
 .barrow input { margin: 0; }
 button.step { width: 44px; flex: 0 0 44px; margin: 0; padding: 0; font-size: 1.3rem; }
+
+.cal { margin-top: 8px; width: auto; min-height: 38px; padding: 6px 12px; font-size: .88rem; flex: none; }
+.calall { margin-top: 6px; }
